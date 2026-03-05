@@ -1,247 +1,773 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Meal Planner Generator</title>
-
-<style>
-
-body{
-font-family:Arial;
-margin:40px;
-background:#fafafa;
-}
-
-button{
-padding:12px 20px;
-font-size:16px;
-cursor:pointer;
-}
-
-table{
-border-collapse:collapse;
-margin-top:20px;
-width:100%;
-}
-
-th,td{
-border:1px solid #ddd;
-padding:8px;
-}
-
-th{
-background:#f0f0f0;
-}
-
-h1{margin-bottom:5px;}
-
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>7-Day Meal Planner (Ben + Kathleen)</title>
+  <style>
+    :root { --bg:#fafafa; --card:#fff; --border:#e6e6e6; --muted:#666; --text:#111; }
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);margin:20px;}
+    h1{margin:0 0 6px;}
+    .muted{color:var(--muted);font-size:13px;}
+    .row{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;flex:1 1 360px;}
+    button{padding:10px 12px;border:1px solid #cfcfcf;border-radius:10px;background:#fff;font-weight:700;cursor:pointer;}
+    button.primary{background:#111;color:#fff;border-color:#111;}
+    button:disabled{opacity:.6;cursor:not-allowed;}
+    .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+    .tabs{display:inline-flex;border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+    .tab{padding:8px 10px;background:#fff;border:0;cursor:pointer;font-weight:700;}
+    .tab.active{background:#111;color:#fff;}
+    table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px;}
+    th,td{border-bottom:1px solid var(--border);padding:10px;vertical-align:top;text-align:left;}
+    th{background:#f5f5f5;position:sticky;top:0;z-index:1;}
+    .pill{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:2px 8px;font-size:12px;margin-right:6px;background:#fff;}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    @media (max-width:900px){.grid2{grid-template-columns:1fr;}}
+    .right{margin-left:auto;}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;}
+    .warn{color:#8a5a00;}
+    .ok{color:#0b6b2f;}
+    .small{font-size:12px;}
+    textarea{width:100%;min-height:160px;border:1px solid var(--border);border-radius:12px;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;}
+  </style>
 </head>
-
-
 <body>
+  <h1>7-Day Meal Planner</h1>
+  <div class="muted">Pulls from your Google Sheet, generates 7 unique dinners + daily snacks with amounts for <b>Ben</b> and <b>Kathleen</b>. Grocery list is always combined.</div>
 
-<h1>7 Day Meal Planner</h1>
+  <div class="row">
+    <div class="card">
+      <div class="controls">
+        <button id="btnGenerate" class="primary">Generate 7-Day Plan</button>
+        <span id="status" class="muted"></span>
+      </div>
 
-<button onclick="generate()">Generate Plan</button>
+      <div style="margin-top:12px" class="grid2">
+        <div>
+          <div class="small muted"><b>Hardcoded Sheet</b></div>
+          <div class="mono small" id="sheetInfo"></div>
+        </div>
+        <div>
+          <div class="small muted"><b>View</b></div>
+          <div class="tabs" role="tablist" aria-label="View">
+            <button class="tab active" id="tabBoth">Both</button>
+            <button class="tab" id="tabBen">Ben</button>
+            <button class="tab" id="tabKath">Kathleen</button>
+          </div>
+        </div>
+      </div>
 
-<div id="output"></div>
+      <details style="margin-top:12px">
+        <summary><b>Assumptions (you can change in code)</b></summary>
+        <div class="small muted" style="margin-top:8px;line-height:1.4">
+          • Daily calories: Kathleen 1500, Ben 1800<br>
+          • Dinner is 50% of daily calories<br>
+          • Flex buffer is 300 cal each (not planned)<br>
+          • Snacks cover remaining calories; snack picker tries to hit protein target.<br>
+          • Dinner plate is built as Protein + Fibrous Side + Carb (40/40/20 visually). We keep veggies high and mainly scale protein/carbs to hit dinner calories.
+        </div>
+      </details>
+    </div>
+
+    <div class="card" style="flex:1 1 520px">
+      <div class="controls">
+        <h3 style="margin:0">Combined Grocery List</h3>
+        <div class="right"></div>
+        <button id="btnPrompt" class="right">Copy Walmart+ InHome Agent Prompt</button>
+      </div>
+      <div id="groceryWrap" class="muted" style="margin-top:8px">Generate a plan to see grocery list.</div>
+      <div id="promptWrap" style="display:none;margin-top:10px">
+        <div class="small muted" style="margin-bottom:6px">Prompt (auto-copied on click):</div>
+        <textarea id="promptText" readonly></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="card" style="flex:1 1 100%">
+      <h3 style="margin:0">Weekly Plan</h3>
+      <div id="planWrap" class="muted" style="margin-top:8px">Generate a plan to see meals.</div>
+    </div>
+  </div>
 
 <script>
-
-const SHEET_ID="1pLXily7bm9fcpkgBd9sP7ku-tPXrOEBWU2ydg2e6eG0"
-
-const GIDS={
-proteins:"1050228569",
-veggies:"198265646",
-carbs:"815210098",
-snacks:"2128372880"
-}
-
-function sheetURL(gid){
-return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`
-}
-
-
-function parseCSV(text){
-
-const rows=text.trim().split("\n").map(r=>r.split(","))
-
-const headers=rows.shift()
-
-return rows.map(r=>{
-let obj={}
-headers.forEach((h,i)=>obj[h.trim()]=r[i])
-return obj
-})
-
-}
-
-
-async function loadList(gid){
-
-const res=await fetch(sheetURL(gid))
-const txt=await res.text()
-
-return parseCSV(txt)
-
-}
-
-
-function pickRandom(list,n){
-
-let shuffled=[...list].sort(()=>0.5-Math.random())
-
-return shuffled.slice(0,n)
-
-}
-
-
-function buildDinnerCombos(p,v,c){
-
-let combos=[]
-
-for(let a of p)
-for(let b of v)
-for(let d of c)
-
-combos.push({
-protein:a.Name,
-veg:b.Name,
-carb:d.Name
-})
-
-return combos
-
-}
-
-
-function groceryList(dinners,snacks){
-
-let items={}
-
-function add(item){
-if(!items[item])items[item]=0
-items[item]++
-}
-
-dinners.forEach(d=>{
-add(d.protein)
-add(d.veg)
-add(d.carb)
-})
-
-snacks.forEach(s=>add(s))
-
-return items
-
-}
-
-
-
-async function generate(){
-
-const proteins=await loadList(GIDS.proteins)
-const veggies=await loadList(GIDS.veggies)
-const carbs=await loadList(GIDS.carbs)
-const snacks=await loadList(GIDS.snacks)
-
-
-const p=pickRandom(proteins,3)
-const v=pickRandom(veggies,3)
-const c=pickRandom(carbs,3)
-
-let combos=buildDinnerCombos(p,v,c)
-
-combos=pickRandom(combos,7)
-
-const snackPool=pickRandom(snacks,6)
-
-let week=[]
-
-for(let i=0;i<7;i++){
-
-week.push({
-
-day:i+1,
-dinner:combos[i],
-snacks:[
-snackPool[i%6].Name,
-snackPool[(i+1)%6].Name
-]
-
-})
-
-}
-
-
-const groceries=groceryList(
-week.map(w=>w.dinner),
-week.flatMap(w=>w.snacks)
-)
-
-
-render(week,groceries)
-
-}
-
-
-function render(week,groceries){
-
-let html=`<h2>Weekly Dinners</h2>`
-
-html+=`<table>
-<tr>
-<th>Day</th>
-<th>Protein</th>
-<th>Fibrous Side</th>
-<th>Carb</th>
-<th>Snacks</th>
-</tr>`
-
-week.forEach(d=>{
-
-html+=`<tr>
-
-<td>Day ${d.day}</td>
-
-<td>${d.dinner.protein}</td>
-
-<td>${d.dinner.veg}</td>
-
-<td>${d.dinner.carb}</td>
-
-<td>${d.snacks.join(", ")}</td>
-
-</tr>`
-
-})
-
-html+=`</table>`
-
-
-html+=`<h2>Grocery List</h2>`
-
-html+=`<table><tr><th>Item</th><th>Qty</th></tr>`
-
-for(let item in groceries){
-
-html+=`<tr>
-<td>${item}</td>
-<td>${groceries[item]}</td>
-</tr>`
-
-}
-
-html+=`</table>`
-
-
-document.getElementById("output").innerHTML=html
-
-}
-
+  // Hardcoded Google Sheet (Ben provided)
+  const SHEET_ID = "1pLXily7bm9fcpkgBd9sP7ku-tPXrOEBWU2ydg2e6eG0";
+  const GIDS = {
+    proteins: "1050228569",
+    veggies:  "198265646",
+    carbs:    "815210098",
+    snacks:   "2128372880",
+  };
+
+  // Targets / settings
+  const PEOPLE = {
+    kathleen: { name: "Kathleen", dailyCals: 1500, snackProteinTarget: 35 },
+    ben:      { name: "Ben",      dailyCals: 1800, snackProteinTarget: 45 },
+  };
+  const DINNER_PCT = 0.50;
+  const FLEX_BUFFER = 300;
+
+  // Snack planning knobs
+  const SNACK_POOL_SIZE = 6;      // unique snacks selected for the week
+  const MAX_SNACKS_PER_DAY = 3;   // per person (planner may pick fewer)
+
+  // Dinner scaling knobs
+  const VEG_BASE_MULT = 1.0;      // keep veggies high and stable
+  const MIN_PROTEIN_MULT = 0.6;
+  const MAX_PROTEIN_MULT = 2.2;
+  const MIN_CARB_MULT = 0.5;
+  const MAX_CARB_MULT = 2.2;
+
+  // UI state
+  let viewMode = "both"; // both | ben | kathleen
+  let lastResult = null;
+
+  const $ = (id) => document.getElementById(id);
+  $("sheetInfo").textContent = `SHEET_ID: ${SHEET_ID}\nGIDs: P ${GIDS.proteins} • V ${GIDS.veggies} • C ${GIDS.carbs} • S ${GIDS.snacks}`;
+
+  // Tabs
+  function setView(mode){
+    viewMode = mode;
+    ["tabBoth","tabBen","tabKath"].forEach(id => $(id).classList.remove("active"));
+    if (mode === "both") $("tabBoth").classList.add("active");
+    if (mode === "ben") $("tabBen").classList.add("active");
+    if (mode === "kathleen") $("tabKath").classList.add("active");
+    if (lastResult) renderAll(lastResult);
+  }
+  $("tabBoth").onclick = () => setView("both");
+  $("tabBen").onclick = () => setView("ben");
+  $("tabKath").onclick = () => setView("kathleen");
+
+  // CSV fetch + parse (handles quotes)
+  function sheetCsvUrl(gid){
+    return `https://docs.google.com/spreadsheets/d/${encodeURIComponent(SHEET_ID)}/export?format=csv&gid=${encodeURIComponent(gid)}`;
+  }
+
+  async function fetchCsv(gid){
+    const res = await fetch(sheetCsvUrl(gid), { cache: "no-store" });
+    if (!res.ok) throw new Error(`CSV fetch failed (${res.status}). Make sure the sheet tabs are published to the web.`);
+    return await res.text();
+  }
+
+  function parseCSV(text){
+    const rows = [];
+    let row = [], cur = "", inQuotes = false;
+    for (let i=0;i<text.length;i++){
+      const ch = text[i];
+      const next = text[i+1];
+      if (ch === '"'){
+        if (inQuotes && next === '"'){ cur += '"'; i++; }
+        else inQuotes = !inQuotes;
+      } else if (ch === ',' && !inQuotes){
+        row.push(cur); cur = "";
+      } else if ((ch === '\n' || ch === '\r') && !inQuotes){
+        if (ch === '\r' && next === '\n') i++;
+        row.push(cur); cur = "";
+        if (row.some(c => c.trim() !== "")) rows.push(row);
+        row = [];
+      } else {
+        cur += ch;
+      }
+    }
+    row.push(cur);
+    if (row.some(c => c.trim() !== "")) rows.push(row);
+    return rows;
+  }
+
+  function normHeader(h){
+    return h.trim().toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+  }
+
+  function csvToObjects(csvText){
+    const rows = parseCSV(csvText);
+    if (!rows.length) return [];
+    const headers = rows[0].map(normHeader);
+    const out = [];
+    for (let i=1;i<rows.length;i++){
+      const r = rows[i];
+      const o = {};
+      headers.forEach((h, idx) => o[h] = (r[idx] ?? "").trim());
+      if (!o.name && o.item) o.name = o.item;
+      if (!o.name && o.food) o.name = o.food;
+      if ((o.name||"").trim() !== "") out.push(o);
+    }
+    return out;
+  }
+
+  function n(x){
+    const v = Number(x);
+    return Number.isFinite(v) ? v : 0;
+  }
+
+  // Random helpers
+  function shuffle(arr){
+    const a = [...arr];
+    for (let i=a.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [a[i],a[j]] = [a[j],a[i]];
+    }
+    return a;
+  }
+
+  function pickUnique(arr, count){
+    return shuffle(arr).slice(0, Math.min(count, arr.length));
+  }
+
+  // Core planning
+  function calcDinnerTargets(){
+    const targets = {};
+    for (const key of Object.keys(PEOPLE)){
+      const daily = PEOPLE[key].dailyCals;
+      const dinner = daily * DINNER_PCT;
+      const snack = Math.max(0, daily - dinner - FLEX_BUFFER);
+      targets[key] = { dinnerCals: dinner, snackCals: snack, snackProteinTarget: PEOPLE[key].snackProteinTarget };
+    }
+    return targets;
+  }
+
+  function itemMacros(item){
+    return {
+      calories: n(item.calories),
+      protein: n(item.protein_g),
+      carbs:   n(item.carbs_g),
+      fat:     n(item.fat_g),
+      defaultQty: n(item.defaultqty) || 1,
+      unit: item.unit || "",
+      buy: item.buy || "Either",
+      notes: item.notes || "",
+      name: item.name,
+    };
+  }
+
+  function scaleDinnerForPerson(protein, veg, carb, targetDinnerCals){
+    const p = itemMacros(protein);
+    const v = itemMacros(veg);
+    const c = itemMacros(carb);
+
+    const baseCalories = (p.calories || 0) + (v.calories || 0) + (c.calories || 0);
+    if (baseCalories <= 0 || targetDinnerCals <= 0){
+      return { proteinMult: 1, vegMult: 1, carbMult: 1, totals: { calories: 0, protein: 0, carbs: 0, fat: 0 }, hasMacros: false };
+    }
+
+    const vegMult = VEG_BASE_MULT;
+    const vegCalories = v.calories * vegMult;
+
+    const remaining = Math.max(0, targetDinnerCals - vegCalories);
+    const targetProteinCalories = remaining * (2/3);
+    const targetCarbCalories = remaining * (1/3);
+
+    let proteinMult = p.calories > 0 ? (targetProteinCalories / p.calories) : 1;
+    let carbMult    = c.calories > 0 ? (targetCarbCalories / c.calories) : 1;
+
+    proteinMult = Math.min(MAX_PROTEIN_MULT, Math.max(MIN_PROTEIN_MULT, proteinMult));
+    carbMult    = Math.min(MAX_CARB_MULT, Math.max(MIN_CARB_MULT, carbMult));
+
+    const totals = {
+      calories: p.calories*proteinMult + v.calories*vegMult + c.calories*carbMult,
+      protein:  p.protein*proteinMult  + v.protein*vegMult  + c.protein*carbMult,
+      carbs:    p.carbs*proteinMult    + v.carbs*vegMult    + c.carbs*carbMult,
+      fat:      p.fat*proteinMult      + v.fat*vegMult      + c.fat*carbMult,
+    };
+
+    return { proteinMult, vegMult, carbMult, totals, hasMacros: true };
+  }
+
+  function generate7UniqueDinners(proteins, veggies, carbs){
+    const P = pickUnique(proteins, 3);
+    const V = pickUnique(veggies, 3);
+    const C = pickUnique(carbs, 3);
+
+    const combos = [];
+    for (const p of P) for (const v of V) for (const c of C) combos.push({ p, v, c });
+
+    const chosen = [];
+    const used = new Set();
+    for (const combo of shuffle(combos)){
+      const key = `${combo.p.name}||${combo.v.name}||${combo.c.name}`;
+      if (used.has(key)) continue;
+      used.add(key);
+      chosen.push(combo);
+      if (chosen.length === 7) break;
+    }
+    return { pools: { P, V, C }, dinners: chosen };
+  }
+
+  function chooseSnackPool(snacks){
+    // Pick exactly SNACK_POOL_SIZE unique snacks for the week.
+    // Bias toward higher-protein snacks, but keep variety.
+    const sorted = [...snacks].sort((a,b)=> n(b.protein_g)-n(a.protein_g));
+    const pool = [];
+
+    if (sorted.length) pool.push(sorted[0]);
+    const rest = snacks.filter(s => s !== pool[0]);
+
+    // Fill remaining slots randomly from the rest
+    pool.push(...pickUnique(rest, Math.max(0, SNACK_POOL_SIZE - pool.length)));
+
+    return pool.slice(0, Math.min(SNACK_POOL_SIZE, snacks.length));
+  }
+
+  function buildWeeklySnackSchedule(snackPool){
+    // Enforces: 6 unique snacks total; 7 days with distinct daily "combos".
+    // Each day gets a fixed set of candidate snacks (3). Per-person picker may choose 2–3 depending on calories.
+    // Schedule uses all 6 snacks repeatedly but each day's set is different.
+    if (!snackPool || snackPool.length < SNACK_POOL_SIZE){
+      throw new Error(`Need at least ${SNACK_POOL_SIZE} unique snacks in the weekly snack pool.`);
+    }
+
+    const s = snackPool;
+    const schedule = [
+      [s[0], s[1], s[2]],
+      [s[1], s[2], s[3]],
+      [s[2], s[3], s[4]],
+      [s[3], s[4], s[5]],
+      [s[4], s[5], s[0]],
+      [s[5], s[0], s[1]],
+      [s[0], s[2], s[5]], // distinct from the 6 sliding-window sets above
+    ];
+
+    // Sanity: ensure the 7 sets are distinct
+    const keys = new Set(schedule.map(set => set.map(x=>x.name).sort().join("||")));
+    if (keys.size !== schedule.length){
+      // Extremely unlikely unless duplicate names exist; fall back to random unique sets.
+      const all = [];
+      for (let i=0;i<schedule.length;i++) all.push(schedule[i]);
+      // No-op; just keep schedule.
+    }
+
+    return schedule;
+  }
+
+  function planSnacksForPerson(snackPool, snackCalTarget, snackProteinTarget){
+    // Totals include calories + full macros (P/C/F) when provided.
+    const pool = [...snackPool].filter(s => n(s.calories) > 0 || n(s.protein_g) > 0);
+    pool.sort((a,b)=>{
+      const aC = Math.max(1, n(a.calories));
+      const bC = Math.max(1, n(b.calories));
+      const aD = n(a.protein_g)/aC;
+      const bD = n(b.protein_g)/bC;
+      if (bD !== aD) return bD - aD;
+      return n(a.calories) - n(b.calories);
+    });
+
+    const picks = [];
+    let totalC = 0, totalP = 0, totalCarb = 0, totalFat = 0;
+
+    for (const s of pool){
+      if (picks.length >= MAX_SNACKS_PER_DAY) break;
+      const c = n(s.calories);
+      const p = n(s.protein_g);
+      const carb = n(s.carbs_g);
+      const fat = n(s.fat_g);
+
+      if (totalC + c <= snackCalTarget * 1.05){
+        picks.push(s);
+        totalC += c;
+        totalP += p;
+        totalCarb += carb;
+        totalFat += fat;
+        if (totalC >= snackCalTarget * 0.90 && totalP >= snackProteinTarget) break;
+      }
+    }
+
+    return { picks, totals: { calories: totalC, protein: totalP, carbs: totalCarb, fat: totalFat } };
+  }
+
+  function buildGrocery(plan){
+    const map = new Map();
+
+    function add(category, item, multSum){
+      const m = itemMacros(item);
+      const qty = (m.defaultQty || 1) * (multSum || 1);
+      const unit = (m.unit || "").trim();
+      const buy = (m.buy || "Either").trim();
+      const key = `${category}||${m.name}||${unit}||${buy}`;
+      const prev = map.get(key) || { category, name: m.name, unit, buy, qty: 0 };
+      prev.qty += qty;
+      map.set(key, prev);
+    }
+
+    for (const day of plan.days){
+      const d = day.dinner;
+      add("Protein", d.p, day.kDinner.proteinMult + day.bDinner.proteinMult);
+      add("Veg", d.v, day.kDinner.vegMult + day.bDinner.vegMult);
+      add("Carb", d.c, day.kDinner.carbMult + day.bDinner.carbMult);
+
+      for (const s of day.kSnacks.picks) add("Snack", s, 1);
+      for (const s of day.bSnacks.picks) add("Snack", s, 1);
+    }
+
+    const items = [...map.values()];
+    items.sort((a,b)=> a.category.localeCompare(b.category) || a.buy.localeCompare(b.buy) || a.name.localeCompare(b.name));
+    return items;
+  }
+
+  // Formatting helpers
+  function fmtQty(defaultQty, unit, mult){
+    const q = (n(defaultQty)||1) * (mult||1);
+    const u = (unit||"").toLowerCase();
+
+    const rounded = u.includes("oz") ? Math.round(q*10)/10 : Math.round(q*100)/100;
+
+    if (u === "oz"){
+      const lbs = Math.round((rounded/16)*100)/100;
+      return `${rounded} oz (${lbs} lb)`;
+    }
+    return `${rounded} ${unit}`.trim();
+  }
+
+  function fmtTotals(t){
+    return `~${Math.round(t.calories)} cal • ${Math.round(t.protein)}g protein`;
+  }
+
+  function rowPersonQty(item, mult, personLabel){
+    const m = itemMacros(item);
+    return `${personLabel}: ${fmtQty(m.defaultQty, m.unit, mult)}`;
+  }
+
+  // Rendering
+  function renderPlan(result){
+    const pools = result.pools;
+
+    let html = `
+      <div class="small muted">
+        <span class="pill">3 proteins</span> ${pools.P.map(x=>x.name).join(", ")}
+        <span class="pill">3 fibrous sides</span> ${pools.V.map(x=>x.name).join(", ")}
+        <span class="pill">3 carbs</span> ${pools.C.map(x=>x.name).join(", ")}
+      </div>
+    `;
+
+    html += `<table>
+      <thead>
+        <tr>
+          <th style="width:70px">Day</th>
+          <th>Dinner (unique combo)</th>
+          <th>Amounts</th>
+          <th>Snacks</th>
+          <th style="width:240px">Daily totals vs goal</th>
+        </tr>
+      </thead>
+      <tbody>
+    `;
+
+    result.days.forEach((day, idx) => {
+      const d = day.dinner;
+      const dinnerName = `<b>${d.p.name}</b> + ${d.v.name} + ${d.c.name}`;
+
+      const pM = itemMacros(d.p);
+      const vM = itemMacros(d.v);
+      const cM = itemMacros(d.c);
+
+      const k = day.kDinner;
+      const b = day.bDinner;
+
+      // Amounts
+      let amounts = "";
+      if (!k.hasMacros || !b.hasMacros){
+        amounts = `<span class="warn">Missing macro calories in one or more dinner items. Add Calories on your sheet to enable scaling.</span>`;
+      } else {
+        const kLines = [
+          rowPersonQty(d.p, k.proteinMult, "K"),
+          rowPersonQty(d.v, k.vegMult, "K"),
+          rowPersonQty(d.c, k.carbMult, "K"),
+          `<span class="ok">${fmtTotals(k.totals)}</span>`
+        ];
+        const bLines = [
+          rowPersonQty(d.p, b.proteinMult, "B"),
+          rowPersonQty(d.v, b.vegMult, "B"),
+          rowPersonQty(d.c, b.carbMult, "B"),
+          `<span class="ok">${fmtTotals(b.totals)}</span>`
+        ];
+
+        if (viewMode === "both"){
+          amounts = `
+            <div class="small">
+              <div><b>Protein</b> — ${fmtQty(pM.defaultQty,pM.unit,k.proteinMult)} (K) • ${fmtQty(pM.defaultQty,pM.unit,b.proteinMult)} (B)</div>
+              <div><b>Veg</b> — ${fmtQty(vM.defaultQty,vM.unit,k.vegMult)} (K) • ${fmtQty(vM.defaultQty,vM.unit,b.vegMult)} (B)</div>
+              <div><b>Carb</b> — ${fmtQty(cM.defaultQty,cM.unit,k.carbMult)} (K) • ${fmtQty(cM.defaultQty,cM.unit,b.carbMult)} (B)</div>
+              <div class="ok">K: ${Math.round(k.totals.calories)} cal / ${Math.round(k.totals.protein)}g protein • B: ${Math.round(b.totals.calories)} cal / ${Math.round(b.totals.protein)}g protein</div>
+            </div>
+          `;
+        } else if (viewMode === "ben"){
+          amounts = `<div class="small">${bLines.join("<br>")}</div>`;
+        } else {
+          amounts = `<div class="small">${kLines.join("<br>")}</div>`;
+        }
+      }
+
+      // Snacks cell
+      function snackLines(sn){
+        return sn.picks.map(s=> {
+          const m = itemMacros(s);
+          return `${m.name} — ${fmtQty(m.defaultQty,m.unit,1)} (~${Math.round(m.calories)} cal, ${Math.round(m.protein)}g protein)`;
+        });
+      }
+
+      let snacksCell = "";
+      if (viewMode === "both"){
+        snacksCell = `
+          <div class="small"><b>K snacks</b><br>${snackLines(day.kSnacks).join("<br>") || "(none)"}<br>
+          <span class="ok">~${Math.round(day.kSnacks.totals.calories)} cal • ${Math.round(day.kSnacks.totals.protein)}g protein</span></div>
+          <hr style="border:0;border-top:1px solid var(--border);margin:8px 0">
+          <div class="small"><b>B snacks</b><br>${snackLines(day.bSnacks).join("<br>") || "(none)"}<br>
+          <span class="ok">~${Math.round(day.bSnacks.totals.calories)} cal • ${Math.round(day.bSnacks.totals.protein)}g protein</span></div>
+        `;
+      } else if (viewMode === "ben"){
+        snacksCell = `<div class="small">${snackLines(day.bSnacks).join("<br>") || "(none)"}<br><span class="ok">~${Math.round(day.bSnacks.totals.calories)} cal • ${Math.round(day.bSnacks.totals.protein)}g protein</span></div>`;
+      } else {
+        snacksCell = `<div class="small">${snackLines(day.kSnacks).join("<br>") || "(none)"}<br><span class="ok">~${Math.round(day.kSnacks.totals.calories)} cal • ${Math.round(day.kSnacks.totals.protein)}g protein</span></div>`;
+      }
+
+      // Daily totals vs goals
+      function totalsHtml(personKey, dinnerObj, snacksObj){
+        const dailyGoal = PEOPLE[personKey].dailyCals;
+        const plannedGoal = dailyGoal - FLEX_BUFFER; // planned calories exclude buffer
+        const dayCals = (dinnerObj?.totals?.calories || 0) + (snacksObj?.totals?.calories || 0);
+        const dayProtein = (dinnerObj?.totals?.protein || 0) + (snacksObj?.totals?.protein || 0);
+        const dayCarbs = (dinnerObj?.totals?.carbs || 0) + (snacksObj?.totals?.carbs || 0);
+        const dayFat = (dinnerObj?.totals?.fat || 0) + (snacksObj?.totals?.fat || 0);
+
+        const delta = Math.round(dayCals - plannedGoal);
+        const deltaText = delta === 0 ? "on target" : (delta > 0 ? `+${delta}` : `${delta}`);
+
+        return `
+          <div class="small">
+            <div><b>${PEOPLE[personKey].name}</b>: ~${Math.round(dayCals)} planned / ${Math.round(plannedGoal)} planned <span class="muted">(buffer ${FLEX_BUFFER})</span> • <b>${deltaText} cal</b></div>
+            <div class="muted">Macros est: ${Math.round(dayProtein)}g P • ${Math.round(dayCarbs)}g C • ${Math.round(dayFat)}g F</div>
+          </div>
+        `;
+      }
+
+      let totalsCell = "";
+      if (viewMode === "both"){
+        totalsCell = totalsHtml("kathleen", day.kDinner, day.kSnacks)
+          + `<hr style="border:0;border-top:1px solid var(--border);margin:8px 0">`
+          + totalsHtml("ben", day.bDinner, day.bSnacks);
+      } else if (viewMode === "ben"){
+        totalsCell = totalsHtml("ben", day.bDinner, day.bSnacks);
+      } else {
+        totalsCell = totalsHtml("kathleen", day.kDinner, day.kSnacks);
+      }
+
+      html += `
+        <tr>
+          <td>Day ${idx+1}</td>
+          <td>${dinnerName}</td>
+          <td>${amounts}</td>
+          <td>${snacksCell}</td>
+          <td>${totalsCell}</td>
+        </tr>
+      `;
+    });
+
+    html += `</tbody></table>`;
+
+    const t = result.targets;
+    html += `
+      <div class="small muted" style="margin-top:10px">
+        Targets (planned): Kathleen dinner ~${Math.round(t.kathleen.dinnerCals)} cal, snacks ~${Math.round(t.kathleen.snackCals)} cal (buffer ${FLEX_BUFFER}).
+        Ben dinner ~${Math.round(t.ben.dinnerCals)} cal, snacks ~${Math.round(t.ben.snackCals)} cal (buffer ${FLEX_BUFFER}).
+      </div>
+    `;
+
+    $("planWrap").innerHTML = html;
+  }
+
+  function renderGrocery(result){
+    const items = result.grocery;
+    if (!items.length){
+      $("groceryWrap").innerHTML = "No grocery items.";
+      return;
+    }
+
+    let html = `<table>
+      <thead>
+        <tr>
+          <th style="width:90px">Category</th>
+          <th>Item</th>
+          <th style="width:140px">Buy pref</th>
+          <th style="width:140px">Qty (combined)</th>
+        </tr>
+      </thead>
+      <tbody>`;
+
+    for (const it of items){
+      const qty = Math.round(it.qty*100)/100;
+      let qtyText = `${qty} ${it.unit}`.trim();
+      if ((it.unit||"").toLowerCase() === "oz"){
+        const lbs = Math.round((qty/16)*100)/100;
+        qtyText = `${qty} oz (${lbs} lb)`;
+      }
+
+      let buy = (it.buy||"Either");
+      if (/frozen/i.test(buy)) buy = "Frozen (store brand)";
+      else if (/fresh/i.test(buy)) buy = "Fresh (store brand)";
+      else buy = "Either (store brand)";
+
+      html += `<tr>
+        <td>${it.category}</td>
+        <td>${it.name}</td>
+        <td>${buy}</td>
+        <td>${qtyText}</td>
+      </tr>`;
+    }
+
+    html += `</tbody></table>`;
+    $("groceryWrap").innerHTML = html;
+  }
+
+  function buildWalmartPrompt(result){
+    const items = result.grocery;
+    const byCat = { Protein:[], Veg:[], Carb:[], Snack:[] };
+    for (const it of items){
+      (byCat[it.category] ||= []).push(it);
+    }
+
+    function line(it){
+      const qty = Math.round(it.qty*100)/100;
+      const unit = (it.unit||"").trim();
+      let qtyText = `${qty} ${unit}`.trim();
+      if (unit.toLowerCase() === "oz"){
+        const lbs = Math.round((qty/16)*100)/100;
+        qtyText = `${qty} oz (${lbs} lb)`;
+      }
+
+      const buyRaw = (it.buy||"Either");
+      const buy = /frozen/i.test(buyRaw) ? "Frozen" : (/fresh/i.test(buyRaw) ? "Fresh" : "Either");
+      return `- ${it.name} — REQUIRED: ${qtyText} minimum (OK to exceed) — prefer ${buy} — store brand/private label`;
+    }
+
+    const parts = [];
+    parts.push(
+`You are my shopping assistant.
+
+Goal: Place a Walmart+ InHome Delivery order for the soonest available delivery time.
+
+Preferences (follow strictly):
+- Prioritize Walmart private label / store brand (ex: Great Value) over name brands.
+- Prioritize frozen vegetables and frozen proteins unless the item explicitly says Fresh.
+- Keep ingredients simple and healthy; no extra items not listed.
+- Gluten-free: choose gluten-free versions where applicable (GF pasta, GF bread, corn/GF tortillas).
+- Quantity rule (important): buy at least the requested amount. If the exact size isn’t available, go bigger — do NOT go under.
+- Units rule: think in lb/oz for meats, cups/oz for foods, and whole items when needed (ex: bananas). Do not use “bags” as a unit.
+- If an exact item isn’t available, choose the closest substitute that matches:
+  (1) same food type, (2) similar macros, (3) private label, (4) frozen-first.
+- Avoid giant bulk sizes unless it’s clearly cheaper and freezer-friendly AND still reasonable for a week.
+
+Instructions:
+1) Search and add each line item below.
+2) When product sizes don’t match the request, choose sizes that MEET OR EXCEED the required quantity (lean heavy, not shy).
+3) Prefer economical sizes close to requested quantities, but never under.
+4) Before checkout, summarize substitutions (if any).
+5) Schedule the soonest InHome delivery slot.
+`
+    );
+
+    parts.push("\nPROTEINS");
+    (byCat.Protein||[]).forEach(it => parts.push(line(it)));
+
+    parts.push("\nFROZEN / FRESH VEG SIDES");
+    (byCat.Veg||[]).forEach(it => parts.push(line(it)));
+
+    parts.push("\nCARBS");
+    (byCat.Carb||[]).forEach(it => parts.push(line(it)));
+
+    parts.push("\nSNACKS");
+    (byCat.Snack||[]).forEach(it => parts.push(line(it)));
+
+    return parts.join("\n");
+  }
+
+  function renderAll(result){
+    renderPlan(result);
+    renderGrocery(result);
+    $("promptText").value = buildWalmartPrompt(result);
+  }
+
+  async function generate(){
+    $("btnGenerate").disabled = true;
+    $("status").textContent = "Loading lists...";
+    $("promptWrap").style.display = "none";
+
+    try {
+      const [pCsv, vCsv, cCsv, sCsv] = await Promise.all([
+        fetchCsv(GIDS.proteins),
+        fetchCsv(GIDS.veggies),
+        fetchCsv(GIDS.carbs),
+        fetchCsv(GIDS.snacks),
+      ]);
+
+      const proteins = csvToObjects(pCsv);
+      const veggies  = csvToObjects(vCsv);
+      const carbs    = csvToObjects(cCsv);
+      const snacks   = csvToObjects(sCsv);
+
+      if (proteins.length < 3 || veggies.length < 3 || carbs.length < 3){
+        throw new Error("Need at least 3 items in Proteins, Veggies, and Carbs.");
+      }
+      if (snacks.length < 6){
+        throw new Error("Need at least 6 items in Snacks.");
+      }
+
+      const targets = calcDinnerTargets();
+      const dinnerGen = generate7UniqueDinners(proteins, veggies, carbs);
+      const snackPool = chooseSnackPool(snacks);
+      if (snackPool.length < SNACK_POOL_SIZE) {
+        throw new Error(`Need at least ${SNACK_POOL_SIZE} unique snacks to build the weekly snack pool.`);
+      }
+      const snackSchedule = buildWeeklySnackSchedule(snackPool);
+
+      const days = [];
+      for (let i=0;i<7;i++){
+        const dinner = dinnerGen.dinners[i];
+
+        const kDinner = scaleDinnerForPerson(dinner.p, dinner.v, dinner.c, targets.kathleen.dinnerCals);
+        const bDinner = scaleDinnerForPerson(dinner.p, dinner.v, dinner.c, targets.ben.dinnerCals);
+
+        // Enforced daily snack candidates (distinct combo each day)
+        const snackCandidates = snackSchedule[i];
+
+        const kSnacks = planSnacksForPerson(snackCandidates, targets.kathleen.snackCals, targets.kathleen.snackProteinTarget);
+        const bSnacks = planSnacksForPerson(snackCandidates, targets.ben.snackCals, targets.ben.snackProteinTarget);
+
+        days.push({ dinner, kDinner, bDinner, kSnacks, bSnacks });
+      }
+
+      const result = {
+        pools: dinnerGen.pools,
+        days,
+        grocery: buildGrocery({ days }),
+        targets,
+      };
+
+      lastResult = result;
+      $("status").innerHTML = `<span class="ok">Generated.</span> <span class="muted">View amounts for Both/Ben/Kathleen.</span>`;
+      renderAll(result);
+
+    } catch (err){
+      console.error(err);
+      $("status").innerHTML = `<span class="warn">${(err && err.message) ? err.message : String(err)}</span>`;
+      $("planWrap").innerHTML = `<span class="warn">Could not generate. Most common fix: in Google Sheets, File → Share → Publish to the web (publish each tab).</span>`;
+      $("groceryWrap").innerHTML = "";
+    } finally {
+      $("btnGenerate").disabled = false;
+    }
+  }
+
+  $("btnGenerate").onclick = generate;
+
+  $("btnPrompt").onclick = async () => {
+    if (!lastResult){
+      alert("Generate a plan first.");
+      return;
+    }
+    const text = $("promptText").value;
+    try { await navigator.clipboard.writeText(text); } catch {}
+    $("promptWrap").style.display = "block";
+    $("status").innerHTML = `<span class="ok">Copied Walmart prompt.</span> <span class="muted">Paste into agent mode.</span>`;
+  };
 </script>
-
-
 </body>
 </html>
