@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Meal Planner Generator</title>
+
+<style>
+
+body{
+font-family:Arial;
+margin:40px;
+background:#fafafa;
+}
+
+button{
+padding:12px 20px;
+font-size:16px;
+cursor:pointer;
+}
+
+table{
+border-collapse:collapse;
+margin-top:20px;
+width:100%;
+}
+
+th,td{
+border:1px solid #ddd;
+padding:8px;
+}
+
+th{
+background:#f0f0f0;
+}
+
+h1{margin-bottom:5px;}
+
+</style>
+</head>
+
+
+<body>
+
+<h1>7 Day Meal Planner</h1>
+
+<button onclick="generate()">Generate Plan</button>
+
+<div id="output"></div>
+
+<script>
+
+const SHEET_ID="1pLXily7bm9fcpkgBd9sP7ku-tPXrOEBWU2ydg2e6eG0"
+
+const GIDS={
+proteins:"1050228569",
+veggies:"198265646",
+carbs:"815210098",
+snacks:"2128372880"
+}
+
+function sheetURL(gid){
+return `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${gid}`
+}
+
+
+function parseCSV(text){
+
+const rows=text.trim().split("\n").map(r=>r.split(","))
+
+const headers=rows.shift()
+
+return rows.map(r=>{
+let obj={}
+headers.forEach((h,i)=>obj[h.trim()]=r[i])
+return obj
+})
+
+}
+
+
+async function loadList(gid){
+
+const res=await fetch(sheetURL(gid))
+const txt=await res.text()
+
+return parseCSV(txt)
+
+}
+
+
+function pickRandom(list,n){
+
+let shuffled=[...list].sort(()=>0.5-Math.random())
+
+return shuffled.slice(0,n)
+
+}
+
+
+function buildDinnerCombos(p,v,c){
+
+let combos=[]
+
+for(let a of p)
+for(let b of v)
+for(let d of c)
+
+combos.push({
+protein:a.Name,
+veg:b.Name,
+carb:d.Name
+})
+
+return combos
+
+}
+
+
+function groceryList(dinners,snacks){
+
+let items={}
+
+function add(item){
+if(!items[item])items[item]=0
+items[item]++
+}
+
+dinners.forEach(d=>{
+add(d.protein)
+add(d.veg)
+add(d.carb)
+})
+
+snacks.forEach(s=>add(s))
+
+return items
+
+}
+
+
+
+async function generate(){
+
+const proteins=await loadList(GIDS.proteins)
+const veggies=await loadList(GIDS.veggies)
+const carbs=await loadList(GIDS.carbs)
+const snacks=await loadList(GIDS.snacks)
+
+
+const p=pickRandom(proteins,3)
+const v=pickRandom(veggies,3)
+const c=pickRandom(carbs,3)
+
+let combos=buildDinnerCombos(p,v,c)
+
+combos=pickRandom(combos,7)
+
+const snackPool=pickRandom(snacks,6)
+
+let week=[]
+
+for(let i=0;i<7;i++){
+
+week.push({
+
+day:i+1,
+dinner:combos[i],
+snacks:[
+snackPool[i%6].Name,
+snackPool[(i+1)%6].Name
+]
+
+})
+
+}
+
+
+const groceries=groceryList(
+week.map(w=>w.dinner),
+week.flatMap(w=>w.snacks)
+)
+
+
+render(week,groceries)
+
+}
+
+
+function render(week,groceries){
+
+let html=`<h2>Weekly Dinners</h2>`
+
+html+=`<table>
+<tr>
+<th>Day</th>
+<th>Protein</th>
+<th>Fibrous Side</th>
+<th>Carb</th>
+<th>Snacks</th>
+</tr>`
+
+week.forEach(d=>{
+
+html+=`<tr>
+
+<td>Day ${d.day}</td>
+
+<td>${d.dinner.protein}</td>
+
+<td>${d.dinner.veg}</td>
+
+<td>${d.dinner.carb}</td>
+
+<td>${d.snacks.join(", ")}</td>
+
+</tr>`
+
+})
+
+html+=`</table>`
+
+
+html+=`<h2>Grocery List</h2>`
+
+html+=`<table><tr><th>Item</th><th>Qty</th></tr>`
+
+for(let item in groceries){
+
+html+=`<tr>
+<td>${item}</td>
+<td>${groceries[item]}</td>
+</tr>`
+
+}
+
+html+=`</table>`
+
+
+document.getElementById("output").innerHTML=html
+
+}
+
+</script>
+
+
+</body>
+</html>
