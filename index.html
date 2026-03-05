@@ -5,95 +5,92 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>7-Day Meal Planner (Ben + Kathleen)</title>
   <style>
-    :root { --bg:#fafafa; --card:#fff; --border:#e6e6e6; --muted:#666; --text:#111; }
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);margin:20px;}
-    h1{margin:0 0 6px;}
-    .muted{color:var(--muted);font-size:13px;}
+    :root{
+      --bg:#f7f7f8; --card:#fff; --border:#e7e7ea; --muted:#6b7280; --text:#111827;
+      --shadow:0 10px 28px rgba(0,0,0,.07);
+    }
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:22px;}
+    .container{max-width:1220px;margin:0 auto;}
+    .topbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+    h1{font-size:22px;margin:0;letter-spacing:-.02em;}
+    .sub{color:var(--muted);font-size:13px;margin-top:2px;}
+    .spacer{flex:1;}
+
+    .btn{padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;font-weight:800;cursor:pointer;}
+    .btn.primary{background:#111827;color:#fff;border-color:#111827;}
+    .btn:disabled{opacity:.6;cursor:not-allowed;}
+
+    .tabs{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden;background:#fff;}
+    .tab{padding:8px 12px;border:0;background:transparent;cursor:pointer;font-weight:900;color:#111827;}
+    .tab.active{background:#111827;color:#fff;}
+
     .row{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;flex:1 1 360px;}
-    button{padding:10px 12px;border:1px solid #cfcfcf;border-radius:10px;background:#fff;font-weight:700;cursor:pointer;}
-    button.primary{background:#111;color:#fff;border-color:#111;}
-    button:disabled{opacity:.6;cursor:not-allowed;}
-    .controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
-    .tabs{display:inline-flex;border:1px solid var(--border);border-radius:12px;overflow:hidden;}
-    .tab{padding:8px 10px;background:#fff;border:0;cursor:pointer;font-weight:700;}
-    .tab.active{background:#111;color:#fff;}
-    table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px;}
-    th,td{border-bottom:1px solid var(--border);padding:10px;vertical-align:top;text-align:left;}
-    th{background:#f5f5f5;position:sticky;top:0;z-index:1;}
-    .pill{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:2px 8px;font-size:12px;margin-right:6px;background:#fff;}
-    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-    @media (max-width:900px){.grid2{grid-template-columns:1fr;}}
-    .right{margin-left:auto;}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;}
-    .warn{color:#8a5a00;}
-    .ok{color:#0b6b2f;}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:14px;box-shadow:var(--shadow);}
+    .card.flex{flex:1 1 520px;}
+
+    .muted{color:var(--muted);}
     .small{font-size:12px;}
-    textarea{width:100%;min-height:160px;border:1px solid var(--border);border-radius:12px;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;}
+    .ok{color:#0b6b2f;}
+    .warn{color:#8a5a00;}
+
+    .pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+    .pill{display:inline-block;border:1px solid var(--border);border-radius:999px;padding:3px 10px;font-size:12px;background:#fff;color:#111827;font-weight:800;}
+
+    table{width:100%;border-collapse:separate;border-spacing:0;margin-top:10px;font-size:14px;overflow:hidden;border:1px solid var(--border);border-radius:14px;background:#fff;}
+    th,td{border-bottom:1px solid var(--border);padding:10px;vertical-align:top;text-align:left;}
+    th{background:#f3f4f6;font-size:12px;color:#111827;text-transform:uppercase;letter-spacing:.04em;}
+    tr:last-child td{border-bottom:0;}
+    .hr{height:1px;background:var(--border);margin:10px 0;}
+
+    textarea{width:100%;min-height:180px;border:1px solid var(--border);border-radius:14px;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12px;}
   </style>
 </head>
+
 <body>
-  <h1>7-Day Meal Planner</h1>
-  <div class="muted">Pulls from your Google Sheet, generates 7 unique dinners + daily snacks with amounts for <b>Ben</b> and <b>Kathleen</b>. Grocery list is always combined.</div>
-
-  <div class="row">
-    <div class="card">
-      <div class="controls">
-        <button id="btnGenerate" class="primary">Generate 7-Day Plan</button>
-        <span id="status" class="muted"></span>
+  <div class="container">
+    <div class="topbar">
+      <div>
+        <h1>7-Day Meal Planner</h1>
+        <div class="sub">Balanced dinners + snacks with quantities + daily macro totals. Grocery list is combined.</div>
       </div>
-
-      <div style="margin-top:12px" class="grid2">
-        <div>
-          <div class="small muted"><b>Hardcoded Sheet</b></div>
-          <div class="mono small" id="sheetInfo"></div>
-        </div>
-        <div>
-          <div class="small muted"><b>View</b></div>
-          <div class="tabs" role="tablist" aria-label="View">
-            <button class="tab active" id="tabBoth">Both</button>
-            <button class="tab" id="tabBen">Ben</button>
-            <button class="tab" id="tabKath">Kathleen</button>
-          </div>
-        </div>
-      </div>
-
-      <details style="margin-top:12px">
-        <summary><b>Assumptions (you can change in code)</b></summary>
-        <div class="small muted" style="margin-top:8px;line-height:1.4">
-          • Daily calories: Kathleen 1500, Ben 1800<br>
-          • Dinner is 50% of daily calories<br>
-          • Flex buffer is 300 cal each (not planned)<br>
-          • Snacks cover remaining calories; snack picker tries to hit protein target.<br>
-          • Dinner plate is built as Protein + Fibrous Side + Carb (40/40/20 visually). We keep veggies high and mainly scale protein/carbs to hit dinner calories.
-        </div>
-      </details>
-    </div>
-
-    <div class="card" style="flex:1 1 520px">
-      <div class="controls">
-        <h3 style="margin:0">Combined Grocery List</h3>
-        <div class="right"></div>
-        <button id="btnPrompt" class="right">Copy Walmart+ InHome Agent Prompt</button>
-      </div>
-      <div id="groceryWrap" class="muted" style="margin-top:8px">Generate a plan to see grocery list.</div>
-      <div id="promptWrap" style="display:none;margin-top:10px">
-        <div class="small muted" style="margin-bottom:6px">Prompt (auto-copied on click):</div>
-        <textarea id="promptText" readonly></textarea>
+      <div class="spacer"></div>
+      <button id="btnGenerate" class="btn primary">Generate plan</button>
+      <div class="tabs" role="tablist" aria-label="View">
+        <button class="tab active" id="tabBoth">Both</button>
+        <button class="tab" id="tabBen">Ben</button>
+        <button class="tab" id="tabKath">Kathleen</button>
       </div>
     </div>
-  </div>
 
-  <div class="row">
-    <div class="card" style="flex:1 1 100%">
-      <h3 style="margin:0">Weekly Plan</h3>
-      <div id="planWrap" class="muted" style="margin-top:8px">Generate a plan to see meals.</div>
+    <div class="small muted" id="status" style="margin-top:10px"></div>
+
+    <div class="row">
+      <div class="card flex">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <h3 style="margin:0;font-size:16px;">Weekly plan</h3>
+        </div>
+        <div id="planMeta" class="pills"></div>
+        <div id="planWrap" class="muted" style="margin-top:10px">Generate a plan to see meals.</div>
+      </div>
+
+      <div class="card flex">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <h3 style="margin:0;font-size:16px;">Combined grocery list</h3>
+          <div style="flex:1"></div>
+          <button id="btnPrompt" class="btn">Copy Walmart+ InHome prompt</button>
+        </div>
+        <div id="groceryWrap" class="muted" style="margin-top:10px">Generate a plan to see grocery list.</div>
+        <div id="promptWrap" style="display:none;margin-top:10px">
+          <div class="small muted" style="margin-bottom:6px">Prompt (auto-copied):</div>
+          <textarea id="promptText" readonly></textarea>
+        </div>
+      </div>
     </div>
   </div>
 
 <script>
-  // Hardcoded Google Sheet (Ben provided)
-  const SHEET_ID = "1pLXily7bm9fcpkgBd9sP7ku-tPXrOEBWU2ydg2e6eG0";
+  // Hardcoded Google Sheet
+  const SHEET_ID = "1Uy_3n_-NYtTfILbHNENONlrXVhl4AUY2thzCjyNquos";
   const GIDS = {
     proteins: "1050228569",
     veggies:  "198265646",
@@ -110,22 +107,20 @@
   const FLEX_BUFFER = 300;
 
   // Snack planning knobs
-  const SNACK_POOL_SIZE = 6;      // unique snacks selected for the week
-  const MAX_SNACKS_PER_DAY = 3;   // per person (planner may pick fewer)
+  const SNACK_POOL_SIZE = 6;
+  const MAX_SNACKS_PER_DAY = 3;
 
   // Dinner scaling knobs
-  const VEG_BASE_MULT = 1.0;      // keep veggies high and stable
+  const VEG_BASE_MULT = 1.0;
   const MIN_PROTEIN_MULT = 0.6;
   const MAX_PROTEIN_MULT = 2.2;
   const MIN_CARB_MULT = 0.5;
   const MAX_CARB_MULT = 2.2;
 
-  // UI state
   let viewMode = "both"; // both | ben | kathleen
   let lastResult = null;
 
   const $ = (id) => document.getElementById(id);
-  $("sheetInfo").textContent = `SHEET_ID: ${SHEET_ID}\nGIDs: P ${GIDS.proteins} • V ${GIDS.veggies} • C ${GIDS.carbs} • S ${GIDS.snacks}`;
 
   // Tabs
   function setView(mode){
@@ -140,14 +135,13 @@
   $("tabBen").onclick = () => setView("ben");
   $("tabKath").onclick = () => setView("kathleen");
 
-  // CSV fetch + parse (handles quotes)
   function sheetCsvUrl(gid){
     return `https://docs.google.com/spreadsheets/d/${encodeURIComponent(SHEET_ID)}/export?format=csv&gid=${encodeURIComponent(gid)}`;
   }
 
   async function fetchCsv(gid){
     const res = await fetch(sheetCsvUrl(gid), { cache: "no-store" });
-    if (!res.ok) throw new Error(`CSV fetch failed (${res.status}). Make sure the sheet tabs are published to the web.`);
+    if (!res.ok) throw new Error(`CSV fetch failed (${res.status}). Publish each tab to the web in Google Sheets.`);
     return await res.text();
   }
 
@@ -201,7 +195,6 @@
     return Number.isFinite(v) ? v : 0;
   }
 
-  // Random helpers
   function shuffle(arr){
     const a = [...arr];
     for (let i=a.length-1;i>0;i--){
@@ -215,7 +208,6 @@
     return shuffle(arr).slice(0, Math.min(count, arr.length));
   }
 
-  // Core planning
   function calcDinnerTargets(){
     const targets = {};
     for (const key of Object.keys(PEOPLE)){
@@ -236,9 +228,106 @@
       defaultQty: n(item.defaultqty) || 1,
       unit: item.unit || "",
       buy: item.buy || "Either",
-      notes: item.notes || "",
       name: item.name,
+      // Optional future columns:
+      tags: item.tags || "",
+      avoid: item.avoid || "",
     };
+  }
+
+  // ---- Balanced dinners: 3 / 3 / 2 distribution across the 3 chosen items
+  function makeBalancedIndexSchedule(){
+    const twoIdx = Math.floor(Math.random()*3);
+    const arr = [];
+    for (let i=0;i<3;i++){
+      const count = (i === twoIdx) ? 2 : 3;
+      for (let k=0;k<count;k++) arr.push(i);
+    }
+    return shuffle(arr); // length 7
+  }
+
+  function tokenizeCSV(s){
+    // Accepts tags/avoid like:
+    // "italian, texmex" OR "italian;texmex" OR "italian | texmex" OR "italian texmex"
+    // Use single-word tokens (hyphens ok).
+    const cleaned = String(s||"")
+      .toLowerCase()
+      .replaceAll(";", ",")
+      .replaceAll("|", ",");
+
+    const out = [];
+    cleaned.split(",").forEach(part => {
+      const p = part.trim();
+      if (!p) return;
+      p.split(" ").forEach(tok => {
+        const t = tok.trim();
+        if (t) out.push(t);
+      });
+    });
+
+    return Array.from(new Set(out));
+  }
+
+  function violatesCompatibility(p, v, c){
+    // Uses optional sheet columns:
+    // - Tags: tokens separated by commas/semicolons/pipes/spaces (e.g. "dinner italian" or "texmex, spicy")
+    // - Avoid: tokens to block (e.g. "breakfast" or "italian" or "seafood")
+    // Rule: if ANY item's avoid-token matches ANY tag-token in the combo, reject the combo.
+
+    const pt = tokenizeCSV(p.tags);
+    const vt = tokenizeCSV(v.tags);
+    const ct = tokenizeCSV(c.tags);
+    const tags = new Set([...pt, ...vt, ...ct]);
+
+    const pa = tokenizeCSV(p.avoid);
+    const va = tokenizeCSV(v.avoid);
+    const ca = tokenizeCSV(c.avoid);
+
+    const bad = (avoidList)=> avoidList.some(t => tags.has(t));
+    return bad(pa) || bad(va) || bad(ca);
+  }
+
+  function generate7UniqueDinners(proteins, veggies, carbs){
+    const P = pickUnique(proteins, 3);
+    const V = pickUnique(veggies, 3);
+    const C = pickUnique(carbs, 3);
+
+    const pBase = makeBalancedIndexSchedule();
+    const vBase = makeBalancedIndexSchedule();
+    const cBase = makeBalancedIndexSchedule();
+
+    const maxTries = 300;
+    for (let t=0;t<maxTries;t++){
+      const pSched = t ? shuffle(pBase) : [...pBase];
+      const vSched = t ? shuffle(vBase) : [...vBase];
+      const cSched = t ? shuffle(cBase) : [...cBase];
+
+      const dinners = [];
+      const seen = new Set();
+      let ok = true;
+
+      for (let d=0; d<7; d++){
+        const p = P[pSched[d]];
+        const v = V[vSched[d]];
+        const c = C[cSched[d]];
+        const key = `${p.name}||${v.name}||${c.name}`;
+
+        if (seen.has(key)) { ok = false; break; }
+        if (violatesCompatibility(p,v,c)) { ok = false; break; }
+
+        seen.add(key);
+        dinners.push({ p, v, c });
+      }
+
+      if (ok) return { pools: { P, V, C }, dinners };
+    }
+
+    // Fallback: still balanced; if constraints are extreme you might get a repeated combo
+    const dinners = [];
+    for (let d=0; d<7; d++){
+      dinners.push({ p: P[pBase[d]], v: V[vBase[d]], c: C[cBase[d]] });
+    }
+    return { pools: { P, V, C }, dinners };
   }
 
   function scaleDinnerForPerson(protein, veg, carb, targetDinnerCals){
@@ -255,6 +344,8 @@
     const vegCalories = v.calories * vegMult;
 
     const remaining = Math.max(0, targetDinnerCals - vegCalories);
+
+    // protein : carb = 2:1 inside the remaining calories
     const targetProteinCalories = remaining * (2/3);
     const targetCarbCalories = remaining * (1/3);
 
@@ -274,75 +365,35 @@
     return { proteinMult, vegMult, carbMult, totals, hasMacros: true };
   }
 
-  function generate7UniqueDinners(proteins, veggies, carbs){
-    const P = pickUnique(proteins, 3);
-    const V = pickUnique(veggies, 3);
-    const C = pickUnique(carbs, 3);
-
-    const combos = [];
-    for (const p of P) for (const v of V) for (const c of C) combos.push({ p, v, c });
-
-    const chosen = [];
-    const used = new Set();
-    for (const combo of shuffle(combos)){
-      const key = `${combo.p.name}||${combo.v.name}||${combo.c.name}`;
-      if (used.has(key)) continue;
-      used.add(key);
-      chosen.push(combo);
-      if (chosen.length === 7) break;
-    }
-    return { pools: { P, V, C }, dinners: chosen };
-  }
-
+  // Snack pool rule (6 unique snacks weekly) + distinct daily combos
   function chooseSnackPool(snacks){
-    // Pick exactly SNACK_POOL_SIZE unique snacks for the week.
-    // Bias toward higher-protein snacks, but keep variety.
     const sorted = [...snacks].sort((a,b)=> n(b.protein_g)-n(a.protein_g));
     const pool = [];
-
     if (sorted.length) pool.push(sorted[0]);
     const rest = snacks.filter(s => s !== pool[0]);
-
-    // Fill remaining slots randomly from the rest
     pool.push(...pickUnique(rest, Math.max(0, SNACK_POOL_SIZE - pool.length)));
-
     return pool.slice(0, Math.min(SNACK_POOL_SIZE, snacks.length));
   }
 
   function buildWeeklySnackSchedule(snackPool){
-    // Enforces: 6 unique snacks total; 7 days with distinct daily "combos".
-    // Each day gets a fixed set of candidate snacks (3). Per-person picker may choose 2–3 depending on calories.
-    // Schedule uses all 6 snacks repeatedly but each day's set is different.
     if (!snackPool || snackPool.length < SNACK_POOL_SIZE){
       throw new Error(`Need at least ${SNACK_POOL_SIZE} unique snacks in the weekly snack pool.`);
     }
-
     const s = snackPool;
-    const schedule = [
+    return [
       [s[0], s[1], s[2]],
       [s[1], s[2], s[3]],
       [s[2], s[3], s[4]],
       [s[3], s[4], s[5]],
       [s[4], s[5], s[0]],
       [s[5], s[0], s[1]],
-      [s[0], s[2], s[5]], // distinct from the 6 sliding-window sets above
+      [s[0], s[2], s[5]],
     ];
-
-    // Sanity: ensure the 7 sets are distinct
-    const keys = new Set(schedule.map(set => set.map(x=>x.name).sort().join("||")));
-    if (keys.size !== schedule.length){
-      // Extremely unlikely unless duplicate names exist; fall back to random unique sets.
-      const all = [];
-      for (let i=0;i<schedule.length;i++) all.push(schedule[i]);
-      // No-op; just keep schedule.
-    }
-
-    return schedule;
   }
 
   function planSnacksForPerson(snackPool, snackCalTarget, snackProteinTarget){
-    // Totals include calories + full macros (P/C/F) when provided.
     const pool = [...snackPool].filter(s => n(s.calories) > 0 || n(s.protein_g) > 0);
+
     pool.sort((a,b)=>{
       const aC = Math.max(1, n(a.calories));
       const bC = Math.max(1, n(b.calories));
@@ -357,6 +408,7 @@
 
     for (const s of pool){
       if (picks.length >= MAX_SNACKS_PER_DAY) break;
+
       const c = n(s.calories);
       const p = n(s.protein_g);
       const carb = n(s.carbs_g);
@@ -368,6 +420,7 @@
         totalP += p;
         totalCarb += carb;
         totalFat += fat;
+
         if (totalC >= snackCalTarget * 0.90 && totalP >= snackProteinTarget) break;
       }
     }
@@ -404,11 +457,9 @@
     return items;
   }
 
-  // Formatting helpers
   function fmtQty(defaultQty, unit, mult){
     const q = (n(defaultQty)||1) * (mult||1);
     const u = (unit||"").toLowerCase();
-
     const rounded = u.includes("oz") ? Math.round(q*10)/10 : Math.round(q*100)/100;
 
     if (u === "oz"){
@@ -418,39 +469,66 @@
     return `${rounded} ${unit}`.trim();
   }
 
-  function fmtTotals(t){
-    return `~${Math.round(t.calories)} cal • ${Math.round(t.protein)}g protein`;
-  }
+  function renderMeta(result){
+    const pCounts = countBy(result.days.map(d=>d.dinner.p.name));
+    const vCounts = countBy(result.days.map(d=>d.dinner.v.name));
+    const cCounts = countBy(result.days.map(d=>d.dinner.c.name));
 
-  function rowPersonQty(item, mult, personLabel){
-    const m = itemMacros(item);
-    return `${personLabel}: ${fmtQty(m.defaultQty, m.unit, mult)}`;
-  }
-
-  // Rendering
-  function renderPlan(result){
-    const pools = result.pools;
-
-    let html = `
-      <div class="small muted">
-        <span class="pill">3 proteins</span> ${pools.P.map(x=>x.name).join(", ")}
-        <span class="pill">3 fibrous sides</span> ${pools.V.map(x=>x.name).join(", ")}
-        <span class="pill">3 carbs</span> ${pools.C.map(x=>x.name).join(", ")}
-      </div>
+    $("planMeta").innerHTML = `
+      <span class="pill">Proteins: ${fmtCounts(pCounts)}</span>
+      <span class="pill">Fibrous sides: ${fmtCounts(vCounts)}</span>
+      <span class="pill">Carbs: ${fmtCounts(cCounts)}</span>
     `;
+  }
 
-    html += `<table>
+  function countBy(arr){
+    const m = {};
+    for (const x of arr) m[x] = (m[x]||0)+1;
+    return m;
+  }
+
+  function fmtCounts(map){
+    return Object.entries(map).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k}×${v}`).join(" • ");
+  }
+
+  function renderPlan(result){
+    function snackLines(sn){
+      return sn.picks.map(s=> {
+        const m = itemMacros(s);
+        return `${m.name} — ${fmtQty(m.defaultQty,m.unit,1)} (~${Math.round(m.calories)} cal, ${Math.round(m.protein)}g protein)`;
+      });
+    }
+
+    function totalsHtml(personKey, dinnerObj, snacksObj){
+      const dailyGoal = PEOPLE[personKey].dailyCals;
+      const plannedGoal = dailyGoal - FLEX_BUFFER;
+      const dayCals = (dinnerObj?.totals?.calories || 0) + (snacksObj?.totals?.calories || 0);
+      const dayProtein = (dinnerObj?.totals?.protein || 0) + (snacksObj?.totals?.protein || 0);
+      const dayCarbs = (dinnerObj?.totals?.carbs || 0) + (snacksObj?.totals?.carbs || 0);
+      const dayFat = (dinnerObj?.totals?.fat || 0) + (snacksObj?.totals?.fat || 0);
+
+      const delta = Math.round(dayCals - plannedGoal);
+      const deltaText = delta === 0 ? "on target" : (delta > 0 ? `+${delta}` : `${delta}`);
+
+      return `
+        <div class="small">
+          <div><b>${PEOPLE[personKey].name}</b>: ~${Math.round(dayCals)} / ${Math.round(plannedGoal)} planned <span class="muted">(buffer ${FLEX_BUFFER})</span> • <b>${deltaText} cal</b></div>
+          <div class="muted">Macros est: ${Math.round(dayProtein)}g P • ${Math.round(dayCarbs)}g C • ${Math.round(dayFat)}g F</div>
+        </div>
+      `;
+    }
+
+    let html = `<table>
       <thead>
         <tr>
           <th style="width:70px">Day</th>
-          <th>Dinner (unique combo)</th>
+          <th>Dinner</th>
           <th>Amounts</th>
           <th>Snacks</th>
-          <th style="width:240px">Daily totals vs goal</th>
+          <th style="width:260px">Totals vs goal</th>
         </tr>
       </thead>
-      <tbody>
-    `;
+      <tbody>`;
 
     result.days.forEach((day, idx) => {
       const d = day.dinner;
@@ -463,46 +541,30 @@
       const k = day.kDinner;
       const b = day.bDinner;
 
-      // Amounts
       let amounts = "";
       if (!k.hasMacros || !b.hasMacros){
-        amounts = `<span class="warn">Missing macro calories in one or more dinner items. Add Calories on your sheet to enable scaling.</span>`;
+        amounts = `<span class="warn">Add Calories + macros to dinner items in your Sheet to enable scaling + totals.</span>`;
       } else {
-        const kLines = [
-          rowPersonQty(d.p, k.proteinMult, "K"),
-          rowPersonQty(d.v, k.vegMult, "K"),
-          rowPersonQty(d.c, k.carbMult, "K"),
-          `<span class="ok">${fmtTotals(k.totals)}</span>`
-        ];
-        const bLines = [
-          rowPersonQty(d.p, b.proteinMult, "B"),
-          rowPersonQty(d.v, b.vegMult, "B"),
-          rowPersonQty(d.c, b.carbMult, "B"),
-          `<span class="ok">${fmtTotals(b.totals)}</span>`
-        ];
-
         if (viewMode === "both"){
           amounts = `
             <div class="small">
               <div><b>Protein</b> — ${fmtQty(pM.defaultQty,pM.unit,k.proteinMult)} (K) • ${fmtQty(pM.defaultQty,pM.unit,b.proteinMult)} (B)</div>
               <div><b>Veg</b> — ${fmtQty(vM.defaultQty,vM.unit,k.vegMult)} (K) • ${fmtQty(vM.defaultQty,vM.unit,b.vegMult)} (B)</div>
               <div><b>Carb</b> — ${fmtQty(cM.defaultQty,cM.unit,k.carbMult)} (K) • ${fmtQty(cM.defaultQty,cM.unit,b.carbMult)} (B)</div>
-              <div class="ok">K: ${Math.round(k.totals.calories)} cal / ${Math.round(k.totals.protein)}g protein • B: ${Math.round(b.totals.calories)} cal / ${Math.round(b.totals.protein)}g protein</div>
-            </div>
-          `;
+            </div>`;
         } else if (viewMode === "ben"){
-          amounts = `<div class="small">${bLines.join("<br>")}</div>`;
+          amounts = `<div class="small">
+            <div><b>Protein</b> — ${fmtQty(pM.defaultQty,pM.unit,b.proteinMult)}</div>
+            <div><b>Veg</b> — ${fmtQty(vM.defaultQty,vM.unit,b.vegMult)}</div>
+            <div><b>Carb</b> — ${fmtQty(cM.defaultQty,cM.unit,b.carbMult)}</div>
+          </div>`;
         } else {
-          amounts = `<div class="small">${kLines.join("<br>")}</div>`;
+          amounts = `<div class="small">
+            <div><b>Protein</b> — ${fmtQty(pM.defaultQty,pM.unit,k.proteinMult)}</div>
+            <div><b>Veg</b> — ${fmtQty(vM.defaultQty,vM.unit,k.vegMult)}</div>
+            <div><b>Carb</b> — ${fmtQty(cM.defaultQty,cM.unit,k.carbMult)}</div>
+          </div>`;
         }
-      }
-
-      // Snacks cell
-      function snackLines(sn){
-        return sn.picks.map(s=> {
-          const m = itemMacros(s);
-          return `${m.name} — ${fmtQty(m.defaultQty,m.unit,1)} (~${Math.round(m.calories)} cal, ${Math.round(m.protein)}g protein)`;
-        });
       }
 
       let snacksCell = "";
@@ -510,40 +572,21 @@
         snacksCell = `
           <div class="small"><b>K snacks</b><br>${snackLines(day.kSnacks).join("<br>") || "(none)"}<br>
           <span class="ok">~${Math.round(day.kSnacks.totals.calories)} cal • ${Math.round(day.kSnacks.totals.protein)}g protein</span></div>
-          <hr style="border:0;border-top:1px solid var(--border);margin:8px 0">
+          <div class="hr"></div>
           <div class="small"><b>B snacks</b><br>${snackLines(day.bSnacks).join("<br>") || "(none)"}<br>
-          <span class="ok">~${Math.round(day.bSnacks.totals.calories)} cal • ${Math.round(day.bSnacks.totals.protein)}g protein</span></div>
-        `;
+          <span class="ok">~${Math.round(day.bSnacks.totals.calories)} cal • ${Math.round(day.bSnacks.totals.protein)}g protein</span></div>`;
       } else if (viewMode === "ben"){
-        snacksCell = `<div class="small">${snackLines(day.bSnacks).join("<br>") || "(none)"}<br><span class="ok">~${Math.round(day.bSnacks.totals.calories)} cal • ${Math.round(day.bSnacks.totals.protein)}g protein</span></div>`;
+        snacksCell = `<div class="small">${snackLines(day.bSnacks).join("<br>") || "(none)"}<br>
+          <span class="ok">~${Math.round(day.bSnacks.totals.calories)} cal • ${Math.round(day.bSnacks.totals.protein)}g protein</span></div>`;
       } else {
-        snacksCell = `<div class="small">${snackLines(day.kSnacks).join("<br>") || "(none)"}<br><span class="ok">~${Math.round(day.kSnacks.totals.calories)} cal • ${Math.round(day.kSnacks.totals.protein)}g protein</span></div>`;
-      }
-
-      // Daily totals vs goals
-      function totalsHtml(personKey, dinnerObj, snacksObj){
-        const dailyGoal = PEOPLE[personKey].dailyCals;
-        const plannedGoal = dailyGoal - FLEX_BUFFER; // planned calories exclude buffer
-        const dayCals = (dinnerObj?.totals?.calories || 0) + (snacksObj?.totals?.calories || 0);
-        const dayProtein = (dinnerObj?.totals?.protein || 0) + (snacksObj?.totals?.protein || 0);
-        const dayCarbs = (dinnerObj?.totals?.carbs || 0) + (snacksObj?.totals?.carbs || 0);
-        const dayFat = (dinnerObj?.totals?.fat || 0) + (snacksObj?.totals?.fat || 0);
-
-        const delta = Math.round(dayCals - plannedGoal);
-        const deltaText = delta === 0 ? "on target" : (delta > 0 ? `+${delta}` : `${delta}`);
-
-        return `
-          <div class="small">
-            <div><b>${PEOPLE[personKey].name}</b>: ~${Math.round(dayCals)} planned / ${Math.round(plannedGoal)} planned <span class="muted">(buffer ${FLEX_BUFFER})</span> • <b>${deltaText} cal</b></div>
-            <div class="muted">Macros est: ${Math.round(dayProtein)}g P • ${Math.round(dayCarbs)}g C • ${Math.round(dayFat)}g F</div>
-          </div>
-        `;
+        snacksCell = `<div class="small">${snackLines(day.kSnacks).join("<br>") || "(none)"}<br>
+          <span class="ok">~${Math.round(day.kSnacks.totals.calories)} cal • ${Math.round(day.kSnacks.totals.protein)}g protein</span></div>`;
       }
 
       let totalsCell = "";
       if (viewMode === "both"){
         totalsCell = totalsHtml("kathleen", day.kDinner, day.kSnacks)
-          + `<hr style="border:0;border-top:1px solid var(--border);margin:8px 0">`
+          + `<div class="hr"></div>`
           + totalsHtml("ben", day.bDinner, day.bSnacks);
       } else if (viewMode === "ben"){
         totalsCell = totalsHtml("ben", day.bDinner, day.bSnacks);
@@ -558,20 +601,10 @@
           <td>${amounts}</td>
           <td>${snacksCell}</td>
           <td>${totalsCell}</td>
-        </tr>
-      `;
+        </tr>`;
     });
 
     html += `</tbody></table>`;
-
-    const t = result.targets;
-    html += `
-      <div class="small muted" style="margin-top:10px">
-        Targets (planned): Kathleen dinner ~${Math.round(t.kathleen.dinnerCals)} cal, snacks ~${Math.round(t.kathleen.snackCals)} cal (buffer ${FLEX_BUFFER}).
-        Ben dinner ~${Math.round(t.ben.dinnerCals)} cal, snacks ~${Math.round(t.ben.snackCals)} cal (buffer ${FLEX_BUFFER}).
-      </div>
-    `;
-
     $("planWrap").innerHTML = html;
   }
 
@@ -587,8 +620,8 @@
         <tr>
           <th style="width:90px">Category</th>
           <th>Item</th>
-          <th style="width:140px">Buy pref</th>
-          <th style="width:140px">Qty (combined)</th>
+          <th style="width:160px">Buy pref</th>
+          <th style="width:150px">Qty (combined)</th>
         </tr>
       </thead>
       <tbody>`;
@@ -621,9 +654,7 @@
   function buildWalmartPrompt(result){
     const items = result.grocery;
     const byCat = { Protein:[], Veg:[], Carb:[], Snack:[] };
-    for (const it of items){
-      (byCat[it.category] ||= []).push(it);
-    }
+    for (const it of items) (byCat[it.category] ||= []).push(it);
 
     function line(it){
       const qty = Math.round(it.qty*100)/100;
@@ -633,7 +664,6 @@
         const lbs = Math.round((qty/16)*100)/100;
         qtyText = `${qty} oz (${lbs} lb)`;
       }
-
       const buyRaw = (it.buy||"Either");
       const buy = /frozen/i.test(buyRaw) ? "Frozen" : (/fresh/i.test(buyRaw) ? "Fresh" : "Either");
       return `- ${it.name} — REQUIRED: ${qtyText} minimum (OK to exceed) — prefer ${buy} — store brand/private label`;
@@ -651,36 +681,29 @@ Preferences (follow strictly):
 - Keep ingredients simple and healthy; no extra items not listed.
 - Gluten-free: choose gluten-free versions where applicable (GF pasta, GF bread, corn/GF tortillas).
 - Quantity rule (important): buy at least the requested amount. If the exact size isn’t available, go bigger — do NOT go under.
-- Units rule: think in lb/oz for meats, cups/oz for foods, and whole items when needed (ex: bananas). Do not use “bags” as a unit.
+- Units rule: think in lb/oz for meats, cups/oz for foods, and whole items when needed. Do not use “bags” as a unit.
 - If an exact item isn’t available, choose the closest substitute that matches:
   (1) same food type, (2) similar macros, (3) private label, (4) frozen-first.
 - Avoid giant bulk sizes unless it’s clearly cheaper and freezer-friendly AND still reasonable for a week.
 
 Instructions:
-1) Search and add each line item below.
-2) When product sizes don’t match the request, choose sizes that MEET OR EXCEED the required quantity (lean heavy, not shy).
-3) Prefer economical sizes close to requested quantities, but never under.
-4) Before checkout, summarize substitutions (if any).
-5) Schedule the soonest InHome delivery slot.
+1) Add each line item below.
+2) When sizes don’t match the request, choose sizes that MEET OR EXCEED the required quantity (lean heavy).
+3) Before checkout, summarize substitutions (if any).
+4) Schedule the soonest InHome delivery slot.
 `
     );
 
-    parts.push("\nPROTEINS");
-    (byCat.Protein||[]).forEach(it => parts.push(line(it)));
-
-    parts.push("\nFROZEN / FRESH VEG SIDES");
-    (byCat.Veg||[]).forEach(it => parts.push(line(it)));
-
-    parts.push("\nCARBS");
-    (byCat.Carb||[]).forEach(it => parts.push(line(it)));
-
-    parts.push("\nSNACKS");
-    (byCat.Snack||[]).forEach(it => parts.push(line(it)));
+    parts.push("\nPROTEINS"); (byCat.Protein||[]).forEach(it => parts.push(line(it)));
+    parts.push("\nFROZEN / FRESH VEG SIDES"); (byCat.Veg||[]).forEach(it => parts.push(line(it)));
+    parts.push("\nCARBS"); (byCat.Carb||[]).forEach(it => parts.push(line(it)));
+    parts.push("\nSNACKS"); (byCat.Snack||[]).forEach(it => parts.push(line(it)));
 
     return parts.join("\n");
   }
 
   function renderAll(result){
+    renderMeta(result);
     renderPlan(result);
     renderGrocery(result);
     $("promptText").value = buildWalmartPrompt(result);
@@ -689,7 +712,6 @@ Instructions:
   async function generate(){
     $("btnGenerate").disabled = true;
     $("status").textContent = "Loading lists...";
-    $("promptWrap").style.display = "none";
 
     try {
       const [pCsv, vCsv, cCsv, sCsv] = await Promise.all([
@@ -712,9 +734,13 @@ Instructions:
       }
 
       const targets = calcDinnerTargets();
+
+      // Balanced dinners: proteins + fibrous sides + carbs all forced to 3/3/2 across 7 days
       const dinnerGen = generate7UniqueDinners(proteins, veggies, carbs);
+
+      // Snacks: 6 snack pool + 7 unique daily candidate sets
       const snackPool = chooseSnackPool(snacks);
-      if (snackPool.length < SNACK_POOL_SIZE) {
+      if (snackPool.length < SNACK_POOL_SIZE){
         throw new Error(`Need at least ${SNACK_POOL_SIZE} unique snacks to build the weekly snack pool.`);
       }
       const snackSchedule = buildWeeklySnackSchedule(snackPool);
@@ -726,31 +752,25 @@ Instructions:
         const kDinner = scaleDinnerForPerson(dinner.p, dinner.v, dinner.c, targets.kathleen.dinnerCals);
         const bDinner = scaleDinnerForPerson(dinner.p, dinner.v, dinner.c, targets.ben.dinnerCals);
 
-        // Enforced daily snack candidates (distinct combo each day)
         const snackCandidates = snackSchedule[i];
-
         const kSnacks = planSnacksForPerson(snackCandidates, targets.kathleen.snackCals, targets.kathleen.snackProteinTarget);
         const bSnacks = planSnacksForPerson(snackCandidates, targets.ben.snackCals, targets.ben.snackProteinTarget);
 
         days.push({ dinner, kDinner, bDinner, kSnacks, bSnacks });
       }
 
-      const result = {
-        pools: dinnerGen.pools,
-        days,
-        grocery: buildGrocery({ days }),
-        targets,
-      };
-
+      const result = { pools: dinnerGen.pools, days, grocery: buildGrocery({ days }), targets };
       lastResult = result;
-      $("status").innerHTML = `<span class="ok">Generated.</span> <span class="muted">View amounts for Both/Ben/Kathleen.</span>`;
+
+      $("status").innerHTML = `<span class="ok">Generated.</span> <span class="muted">Dinner distribution enforced: 3–3–2 for proteins, fibrous sides, and carbs.</span>`;
       renderAll(result);
 
     } catch (err){
       console.error(err);
       $("status").innerHTML = `<span class="warn">${(err && err.message) ? err.message : String(err)}</span>`;
-      $("planWrap").innerHTML = `<span class="warn">Could not generate. Most common fix: in Google Sheets, File → Share → Publish to the web (publish each tab).</span>`;
+      $("planWrap").innerHTML = `<span class="warn">Could not generate. Most common fix: Google Sheets → File → Share → Publish to the web (publish each tab).</span>`;
       $("groceryWrap").innerHTML = "";
+      $("planMeta").innerHTML = "";
     } finally {
       $("btnGenerate").disabled = false;
     }
