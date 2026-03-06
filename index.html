@@ -91,6 +91,16 @@
 <script>
   // Hardcoded Google Sheet
   const SHEET_ID = "1Uy_3n_-NYtTfILbHNENONlrXVhl4AUY2thzCjyNquos";
+  // Prefer sheet TAB NAMES so you don't have to keep updating GIDs when you copy sheets.
+  // These must match your Google Sheet tab names exactly.
+  const SHEET_TABS = {
+    proteins: "Proteins",
+    veggies:  "Veggies",
+    carbs:    "Carbs",
+    snacks:   "Snacks",
+  };
+
+  // Optional legacy GIDs fallback (only used if tab-name export fails)
   const GIDS = {
     proteins: "1050228569",
     veggies:  "198265646",
@@ -135,14 +145,54 @@
   $("tabBen").onclick = () => setView("ben");
   $("tabKath").onclick = () => setView("kathleen");
 
-  function sheetCsvUrl(gid){
-    return `https://docs.google.com/spreadsheets/d/${encodeURIComponent(SHEET_ID)}/export?format=csv&gid=${encodeURIComponent(gid)}`;
+  function sheetCsvUrlByTab(tabName){
+    // Uses the Google Visualization API CSV output. Works great when the sheet is viewable.
+    // Requires either: (1) Share -> Anyone with link can view, OR (2) File -> Publish to the web.
+    const sheet = encodeURIComponent(tabName);
+    return `https://docs.google.com/spreadsheets/d/${encodeURIComponent(SHEET_ID)}/gviz/tq?tqx=out:csv&sheet=${sheet}`;
   }
 
-  async function fetchCsv(gid){
-    const res = await fetch(sheetCsvUrl(gid), { cache: "no-store" });
-    if (!res.ok) throw new Error(`CSV fetch failed (${res.status}). Publish each tab to the web in Google Sheets.`);
-    return await res.text();
+  function sheetCsvUrlByGid(gid){
+    // Legacy export endpoint (often requires Publish to web)
+    return `https://docs.google.com/spreadsheets/d/${encodeURIComponent(SHEET_ID)}/export?format=csv&gid=${encodeURIComponent(gid)}`;
+  }/export?format=csv&gid=${encodeURIComponent(gid)}`;
+  }
+
+  async function fetchCsv({ tabName, gid }){
+    // Try tab-name CSV first (no GID maintenance). If that fails, fall back to gid export.
+    const tried = [];
+
+    async function tryUrl(url, label){
+      tried.push(label);
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok){
+        let body = "";
+        try { body = (await res.text()).slice(0, 300); } catch {}
+        const hint = (
+          `CSV fetch failed (${res.status}). Tried: ${tried.join(" -> ")}. ` +
+          `Fix: set the Google Sheet to viewable (Share: Anyone with link can view) OR Publish to web. ` +
+          (body ? `Response: ${body}` : "")
+        );
+        throw new Error(hint);
+      }
+      return await res.text();
+    }
+
+    // Primary
+    if (tabName){
+      const url1 = sheetCsvUrlByTab(tabName);
+      try { return await tryUrl(url1, `tab:${tabName}`); } catch (e){
+        // continue to fallback
+      }
+    }
+
+    // Fallback
+    if (gid){
+      const url2 = sheetCsvUrlByGid(gid);
+      return await tryUrl(url2, `gid:${gid}`);
+    }
+
+    throw new Error("CSV fetch failed. Missing tabName and gid.");
   }
 
   function parseCSV(text){
@@ -715,10 +765,10 @@ Instructions:
 
     try {
       const [pCsv, vCsv, cCsv, sCsv] = await Promise.all([
-        fetchCsv(GIDS.proteins),
-        fetchCsv(GIDS.veggies),
-        fetchCsv(GIDS.carbs),
-        fetchCsv(GIDS.snacks),
+        fetchCsv({ tabName: SHEET_TABS.proteins, gid: GIDS.proteins }),
+        fetchCsv({ tabName: SHEET_TABS.veggies,  gid: GIDS.veggies  }),
+        fetchCsv({ tabName: SHEET_TABS.carbs,    gid: GIDS.carbs    }),
+        fetchCsv({ tabName: SHEET_TABS.snacks,   gid: GIDS.snacks   }),
       ]);
 
       const proteins = csvToObjects(pCsv);
@@ -768,7 +818,7 @@ Instructions:
     } catch (err){
       console.error(err);
       $("status").innerHTML = `<span class="warn">${(err && err.message) ? err.message : String(err)}</span>`;
-      $("planWrap").innerHTML = `<span class="warn">Could not generate. Most common fix: Google Sheets → File → Share → Publish to the web (publish each tab).</span>`;
+      $("planWrap").innerHTML = `<span class="warn">Could not generate. Fix: in Google Sheets set <b>Share → Anyone with link can view</b> (recommended), OR <b>File → Publish to the web</b>. Also confirm your tab names match exactly: Proteins, Veggies, Carbs, Snacks.</span>`;
       $("groceryWrap").innerHTML = "";
       $("planMeta").innerHTML = "";
     } finally {
